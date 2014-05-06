@@ -1,0 +1,110 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'teamspeak'
+require 'optparse'
+require 'byebug'
+
+teamspeak_options = {}
+options = {}
+OptionParser.new do |opts|
+
+  opts.banner = "Usage: check_teamspeak [options]"
+
+  opts.on("-v", "--[no]-verbose", "Run verbosely") do |v|
+    teamspeak_options[:debug] = true
+  end
+
+  opts.on("-H HOST", "--host HOST", "Set up teamspeak host, default is 127.0.0.1") do |v|
+    teamspeak_options[:host] = v
+  end
+
+  opts.on("-P PORT", "--port PORT", "Set up teamspeak port, default is 10011") do |v|
+    teamspeak_options[:port] = v
+  end
+
+  opts.on("-U USERNAME", "--username USERNAME", "Set up teamspeak username, default is serveradmin") do |v|
+    teamspeak_options[:username] = v
+  end
+
+  opts.on("-p PASSWORD", "--password PASSWORD", "Set up teamspeak password, default is ********** ;)") do |v|
+    teamspeak_options[:password] = v
+  end
+
+  opts.on("--server ID", Integer, "Set server id to check") do |v|
+    options[:server] = v
+  end
+
+  opts.on("--max-clients x,y", Array, "Set warning, error value for max-clients option") do |list|
+    options[:max_clients] = list.map { |i| i.to_i }
+  end
+
+  opts.on("--max-server x,y", Array, "Set warning, error value for running servers option") do |list|
+    options[:max_server] = list.map { |i| i.to_i }
+  end
+
+  opts.on("--custom x,y", Array, "Set warning, error value for running servers option") do |list|
+    options[:custom] = list.map { |i| i.to_i }
+  end
+
+  opts.on_tail("-h", "--help", "Show this message") do
+    puts opts
+    exit
+  end
+
+end.parse!
+
+ts3 = Teamspeak.connect(teamspeak_options) do
+  use(options[:server])
+end
+
+if options[:max_clients]
+
+  hostinfo = ts3.hostinfo.struct
+
+  running = hostinfo.virtualservers_total_clients_online.to_i
+  max = hostinfo.virtualservers_total_maxclients.to_i
+
+  _warn, _error = options[:max_server]
+
+  exit 1 if max > _error
+
+  if running < _error
+    if running > _warn
+      exit -1
+    end
+  else
+    exit 1
+  end
+
+end
+
+if options[:max_server]
+
+  running = ts3.hostinfo.struct.virtualservers_running_total.to_i
+  _warn, _error = options[:max_server]
+
+  if running < _error
+    if running > _warn
+      exit -1
+    end
+  else
+    exit 1
+  end
+
+end
+
+exit 0
+
+__END__
+
+use => --server
+channellist => ??
+ftlist
+hostinfo
+logadd
+privilegekeylist
+serverinfo
+serverlist
+serverrequestconnectioninfo
+version
